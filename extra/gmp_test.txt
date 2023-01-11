@@ -1,0 +1,322 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   gmp_test.c                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: kkuokkan <kkuokkan@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2022/03/08 14:22:54 by kkuokkan          #+#    #+#             */
+/*   Updated: 2022/03/08 14:22:56 by kkuokkan         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "../minilibx/mlx.h"
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <strings.h>
+#include "../../../../.brew/Cellar/gmp/6.2.1_1/include/gmp.h"
+
+#define WIN_WIDTH 500
+#define WIN_HEIGHT 500
+#define PII 3.1415926535
+#define MAX_ITER 500
+#define scale 2.0
+#define	CAST_BONUS 4
+#define BOUND 36.0
+#define	COLOR 255
+
+typedef struct		s_image
+{
+	void		*image;
+	char		*ptr;
+	int			bpp;
+	int			stride;
+	int			endian;
+}					t_image;
+
+typedef struct		t_zoom
+{
+	double		x_start;
+	double		y_start;
+	double		x_end;
+	double		y_end;
+	double	delta_num;
+	double color_map;
+	mpf_t		mx_start;
+	mpf_t		my_start;
+	mpf_t		mx_end;
+	mpf_t		my_end;
+	mpf_t		delta;
+	mpf_t		c_map;
+	mpf_t		mul_l;
+	mpf_t		mul_s;
+	mpf_t		mul_zo;
+	mpf_t		two;
+	mpf_t		m_two;
+	mpf_t		mval;
+	void		*mlx;
+	void		*win;
+	t_image		*img_ptr;
+}					t_zoom;
+
+
+static void	ft_bzero2(void *str, size_t n)
+{
+	size_t	i;
+
+	i = 0;
+	while (i < n)
+	{
+		((char *)str)[i] = '\0';
+		i++;
+	}
+}
+
+static void	*ft_memalloc(size_t size)
+{
+	void	*alloc;
+
+	alloc = malloc(size);
+	if (alloc == NULL)
+		return (NULL);
+	ft_bzero2(alloc, size);
+	return (alloc);
+}
+
+static int out(int keycode, t_zoom *zm)
+{
+	if (keycode == 53)
+	{
+		mlx_destroy_image(zm->mlx, zm->img_ptr);
+		free(zm);
+		exit(0);
+	}
+	return (0);
+}
+
+static void	set_pixel(t_image *img, int color, int x, int y)
+{
+	if (x < 0 || x >= WIN_WIDTH || y < 0 || y >= WIN_WIDTH)
+		return ;
+	*(int*)(img->ptr + (((int)x + (int)y * WIN_WIDTH) * CAST_BONUS)) = color;
+}
+
+static void mandelbox(mpf_t mcx, mpf_t mcy, t_zoom *zm)
+{
+	int n = 0;
+	mpf_t	mzx;
+	mpf_t	mzy;
+	mpf_t	temp_1;
+	mpf_t	temp_2;
+	mpf_t	temp_3;
+	mpf_t	temp_4;
+	mpf_t	mdot;
+	mpf_t	m_inv;
+	mpf_t	md;
+
+	mpf_init_set(mzx, mcx);
+	mpf_init_set(mzy, mcy);
+	mpf_init_set_ui(temp_1, 0);
+	mpf_init_set_ui(temp_2, 0);
+	mpf_init_set_ui(temp_3, 0);
+	mpf_init_set_ui(temp_4, 0);
+	mpf_init_set_d(md, 1.0);
+	mpf_init_set_ui(m_inv, 0);
+	mpf_init_set_ui(mdot, 0);
+	while (n < MAX_ITER)
+	{
+		if (mpf_cmp_d(mzx, 1.0) == 1)
+			mpf_sub(mzx, zm->two, mzx);
+		else if (mpf_cmp_d(mzx, -1.0) == (-1))
+			mpf_sub(mzx, zm->m_two, mzx);
+		if (mpf_cmp_d(mzy, 1.0) == 1)
+			mpf_sub(mzy, zm->two, mzy);
+		else if (mpf_cmp_d(mzy, -1.0) == (-1))
+			mpf_sub(mzy, zm->m_two, mzy);
+		mpf_mul(temp_1, mzx, mzx);
+		mpf_mul(temp_2, mzy, mzy);
+		mpf_add(temp_3, temp_1, temp_2);
+		mpf_sqrt(mdot, temp_3);
+		if (mpf_cmp_d(mdot, 0.5) == (-1))
+		{
+			mpf_mul(mzx, mzx, zm->two);
+			mpf_mul(mzy, mzy, zm->two);
+			mpf_mul(md, md, zm->two);
+		}
+		else if (mpf_cmp_d(mdot, 1.0) == (-1))
+		{
+			mpf_div(m_inv, zm->mul_s, mdot);
+			mpf_mul(mzx, mzx, m_inv);
+			mpf_mul(mzy, mzy, m_inv);
+			mpf_mul(md, md , m_inv);
+		}
+		mpf_mul(temp_1, zm->two, mzx);
+		mpf_add(mzx, temp_1, mcx);
+		mpf_mul(temp_1, zm->two, mzy);
+		mpf_add(mzy, temp_1, mcy);
+		mpf_mul(temp_1, md, zm->two);
+		mpf_add(md, temp_1, zm->mul_s);
+		if (mpf_cmp_d(mdot, BOUND) == 1)
+			break ;
+		n++;
+	}
+	mpf_mul(temp_1, mzx, mzx);
+	mpf_mul(temp_2, mzy, mzy);
+	mpf_add(temp_3, temp_1, temp_2);
+	mpf_sqrt(temp_4, temp_3);
+	mpf_div(zm->mval, temp_4, md);
+}
+
+static void draw_machine(t_zoom *zm, int x, int y)
+{
+	int		val;
+	int		color;
+	mpf_t	calc;
+	mpf_t	temp_1;
+	mpf_t	temp_2;
+	mpf_t	temp_3;
+	mpf_t	mcx;
+	mpf_t	mcy;
+	mpf_init_set_ui(calc, 0);
+	mpf_init_set_ui(temp_1, 0);
+	mpf_init_set_ui(temp_2, 0);
+	mpf_init_set_ui(temp_3, 0);
+	mpf_init_set_ui(mcx, 0);
+	mpf_init_set_ui(mcy, 0);
+	while (x < WIN_WIDTH)
+	{
+		while (y < WIN_HEIGHT)
+		{
+			mpf_sub(temp_1, zm->mx_end, zm->mx_start);
+			mpf_init_set_d(temp_2, ((double)x / WIN_WIDTH));
+			mpf_mul(temp_3, temp_1, temp_2);
+			mpf_add(mcx, zm->mx_start, temp_3);
+			mpf_sub(temp_1, zm->my_end, zm->my_start);
+			mpf_init_set_d(temp_2, ((double)y / WIN_HEIGHT));
+			mpf_mul(temp_3, temp_1, temp_2);
+			mpf_add(mcy, zm->my_start, temp_3);
+			mandelbox(mcx, mcy, zm);
+			mpf_mul(calc, zm->c_map, zm->mval);
+			val = fmin(mpf_get_ui(calc), COLOR);
+			color = val;
+			color ^= val << 8;
+			color ^= val << 16;
+			set_pixel(zm->img_ptr, color, x, y);
+			y++;
+		}
+		x++;
+		y = 0;
+	}
+	mlx_put_image_to_window(zm->mlx, zm->win, zm->img_ptr->image, 0, 0);
+}
+
+static int	ft_mouse(int button, int x, int y, t_zoom *zm)
+{
+	double	cx;
+	double	cy;
+	static	int i = 0;
+	mpf_t	temp_1;
+	mpf_t	temp_2;
+	mpf_t	temp_3;
+	mpf_t	mcx;
+	mpf_t	mcy;
+
+	mpf_init_set_ui(temp_1, 0);
+	mpf_init_set_ui(temp_2, 0);
+	mpf_init_set_ui(temp_3, 0);
+	mpf_init_set_ui(mcx, 0);
+	mpf_init_set_ui(mcy, 0);
+	if (button == 4 && x > 0 && x < WIN_WIDTH && y > 0 && y < WIN_HEIGHT)
+	{
+		cx = (zm->x_start + ((double)x / WIN_WIDTH) * (zm->x_end - zm->x_start));
+		mpf_sub(temp_1, zm->mx_end, zm->mx_start);
+		mpf_init_set_d(temp_2, ((double)x / WIN_WIDTH));
+		mpf_mul(temp_3, temp_1, temp_2);
+		mpf_add(mcx, zm->mx_start, temp_3);
+		cy = (zm->y_start + ((double)y / WIN_HEIGHT) * (zm->y_end - zm->y_start));
+		mpf_sub(temp_1, zm->my_end, zm->my_start);
+		mpf_init_set_d(temp_2, ((double)y / WIN_HEIGHT));
+		mpf_mul(temp_3, temp_1, temp_2);
+		mpf_add(mcy, zm->my_start, temp_3);
+		zm->x_start = zm->x_start + (fabs (zm->x_start - cx) * 0.1);
+		mpf_sub(temp_1, zm->mx_start, mcx);
+		mpf_abs(temp_3, temp_1);
+		mpf_mul(temp_2, temp_3, zm->mul_zo);
+		mpf_add(zm->mx_start, zm->mx_start, temp_2);
+		zm->y_start = zm->y_start + (fabs(zm->y_start - cy) * 0.1);
+		mpf_sub(temp_1, zm->my_start, mcy);
+		mpf_abs(temp_3, temp_1);
+		mpf_mul(temp_2, temp_3, zm->mul_zo);
+		mpf_add(zm->my_start, zm->my_start, temp_2);
+		zm->x_end = zm->x_end - (fabs(zm->x_end - cx) * 0.1);
+		mpf_sub(temp_1, zm->mx_end, mcx);
+		mpf_abs(temp_3, temp_1);
+		mpf_mul(temp_2, temp_3, zm->mul_zo);
+		mpf_sub(zm->mx_end, zm->mx_end, temp_2);
+		zm->y_end = zm->y_end - (fabs(zm->y_end - cy) * 0.1);
+		mpf_sub(temp_1, zm->my_end, mcy);
+		mpf_abs(temp_3, temp_1);
+		mpf_mul(temp_2, temp_3, zm->mul_zo);
+		mpf_sub(zm->my_end, zm->my_end, temp_2);
+		zm->delta_num *= 0.9;
+		mpf_mul(zm->delta, zm->delta, zm->mul_l);
+		zm->color_map = 1.0 / ((zm->delta_num) / fmax(WIN_HEIGHT, WIN_WIDTH)) * COLOR;
+		mpf_div(temp_1, zm->mul_s, zm->delta);
+		mpf_mul_ui(zm->c_map, temp_1, COLOR);
+		i++;
+		draw_machine(zm, 0, 0);
+	}
+	return (0);
+}
+
+// -8 and 8 symbolize the complex plain start and end on both axis
+// delta is the distanse between start and end on axis
+// colormap makes the color nice according to zoom
+
+static void initialize(t_zoom *zm)
+{
+	zm->x_start = -8;
+	zm->y_start = -8;
+	zm->x_end = 8;
+	zm->y_end = 8;
+	zm->delta_num = 16;
+	zm->color_map = 1.0 / ((zm->delta_num) / fmax(WIN_HEIGHT, WIN_WIDTH)) * COLOR;
+	mpf_init_set_d(zm->delta, (16.0 / fmax(WIN_HEIGHT, WIN_WIDTH)));
+	mpf_init_set_d(zm->c_map, zm->color_map);
+	mpf_init_set_d(zm->mul_l, 0.9);
+	mpf_init_set_d(zm->mul_s, 1.0);
+	mpf_init_set_d(zm->mx_start, -8);
+	mpf_init_set_d(zm->mx_end, 8);
+	mpf_init_set_d(zm->my_start, -8);
+	mpf_init_set_d(zm->my_end, 8);
+	mpf_init_set_d(zm->mul_zo, 0.1);
+	mpf_init_set_d(zm->two, 2.0);
+	mpf_init_set_d(zm->m_two, -2.0);
+	mpf_init_set_ui(zm->mval, 0);
+}
+
+int main()
+{
+	void	*mlx;
+	void	*win;
+	mlx = mlx_init();
+	win = mlx_new_window(mlx, WIN_WIDTH, WIN_HEIGHT, "test");
+	t_image		*img;
+	img = ft_memalloc(sizeof(t_image));
+	img->image = mlx_new_image(mlx, WIN_WIDTH, WIN_HEIGHT);
+	img->ptr = mlx_get_data_addr(img->image, &img->bpp, &img->stride, &img->endian);
+	t_zoom	*zm;
+	zm = (t_zoom *)malloc(sizeof(t_zoom));
+	zm->mlx = mlx;
+	zm->win = win;
+	zm->img_ptr = img;
+	initialize(zm);
+	draw_machine(zm, 0, 0);
+	mlx_key_hook(win, &out, zm);
+	mlx_hook(win, 4, 0, &ft_mouse, zm);
+	mlx_hook(win, 6, 0, &ft_mouse, zm);
+	mlx_loop(mlx);
+	return (0);
+}

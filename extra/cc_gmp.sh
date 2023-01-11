@@ -1,0 +1,1 @@
+mv gmp_test.txt gmp_test.c
