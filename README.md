@@ -18,11 +18,13 @@ Fractal is a suprisingly simple program.
 ### Julia set
 
 <img width="1108" alt="Screen Shot 2023-01-11 at 4 42 13 PM" src="https://user-images.githubusercontent.com/93378894/211843950-f19f2d96-cbe2-4f2a-ae9b-b46a8b32c02b.png">
+
 ![ezgif com-gif-maker-17](https://user-images.githubusercontent.com/93378894/211845019-01c33cfe-3b38-4e5c-a819-7f57b678ebfb.gif)
 
 ### Mandelbox
 
 <img width="754" alt="Screen Shot 2023-01-11 at 4 42 42 PM" src="https://user-images.githubusercontent.com/93378894/211845125-d2576621-e171-4878-bbea-efc3831c7467.png">
+
 ![ezgif com-gif-maker-18](https://user-images.githubusercontent.com/93378894/211845926-56fb4fee-1bcb-4007-9cc8-2f9420df37de.gif)
 
 
